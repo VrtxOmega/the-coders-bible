@@ -4,6 +4,10 @@
  * Command Palette (Ctrl+K), animated counters, particle canvas
  */
 
+import { WasmBibleEngine } from './wasm_engine.js';
+
+const engine = new WasmBibleEngine();
+
 const API = '';
 
 function escapeHtml(str) {
@@ -34,7 +38,13 @@ let statsData = null;
 let searchDebounce = null;
 
 // ─── Init ───
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        await engine.init();
+        console.log("WasmBibleEngine initialized");
+    } catch(e) {
+        console.error("Engine init failed:", e);
+    }
     initParticles();
     initTabs();
     initSearch();
@@ -148,8 +158,7 @@ async function doSearch(query) {
     if (!q) { container.innerHTML = ''; countEl.textContent = ''; return; }
     container.innerHTML = '<div class="search-loading"><div class="loading-spinner"></div> Searching...</div>';
     try {
-        const res = await fetch(`${API}/api/search?q=${encodeURIComponent(q)}&limit=20`);
-        const data = await res.json();
+        const data = await engine.search(q, 20);
         countEl.textContent = `${data.count} results`;
         if (!data.results || data.results.length === 0) {
             container.innerHTML = '<div class="search-empty">No fragments found. Try different keywords.</div>';
@@ -359,12 +368,7 @@ async function analyzeSnippet(snippet) {
     results.style.display = 'none';
 
     try {
-        const res = await fetch(`${API}/api/analyze`, {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({snippet})
-        });
-        const data = await res.json();
+        const data = await engine.analyze(snippet);
         loading.style.display = 'none';
         results.style.display = 'block';
         renderAnalysis(data);
@@ -482,8 +486,7 @@ async function doCmdSearch(query) {
     const container = document.getElementById('cmd-results');
     if (!q) { container.innerHTML = '<div class="cmd-empty">Type to search 67,000+ code fragments</div>'; return; }
     try {
-        const res = await fetch(`${API}/api/search?q=${encodeURIComponent(q)}&limit=8`);
-        const data = await res.json();
+        const data = await engine.search(q, 8);
         if (!data.results || data.results.length === 0) {
             container.innerHTML = '<div class="cmd-empty">No results found</div>';
             return;
@@ -502,8 +505,7 @@ async function doCmdSearch(query) {
 // ─── Load Stats & Domains ───
 async function loadStats() {
     try {
-        const res = await fetch(`${API}/api/stats`);
-        statsData = await res.json();
+        statsData = await engine.stats();
         const total = statsData.total_fragments || 0;
         const domains = statsData.domains || [];
         const domainCount = domains.length;
@@ -519,7 +521,7 @@ async function loadStats() {
 
         renderDomains(domains);
     } catch(e) {
-        document.getElementById('stats-count').textContent = 'offline';
+        document.getElementById('stats-count').textContent = 'offline'; console.error('loadStats error:', e);
     }
 }
 
@@ -561,8 +563,5 @@ function renderDomains(domains) {
 }
 
 // ─── Helpers ───
-function escapeHtml(s) {
-    const d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
-}
+// escapeHtml is declared at the top of the file
+

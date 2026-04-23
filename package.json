@@ -1,0 +1,24 @@
+{
+  "name": "coders-bible",
+  "version": "1.0.0",
+  "description": "<div align=\"center\">\r   <img src=\"https://raw.githubusercontent.com/VrtxOmega/Gravity-Omega/master/omega_icon.png\" width=\"100\" alt=\"CODERS BIBLE\" />\r   <h1>CODER'S BIBLE</h1>\r   <p><strong>Sovereign Documentation Harvest & Retrieval Engine — VERITAS & Omega Ecosystem</strong></p>\r </div>",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VrtxOmega/coders-bible.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/VrtxOmega/coders-bible/issues"
+  },
+  "homepage": "https://github.com/VrtxOmega/coders-bible#readme",
+  "dependencies": {
+    "sql.js-httpvfs": "^0.8.12"
+  }
+}
