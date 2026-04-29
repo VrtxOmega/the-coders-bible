@@ -1,0 +1,94 @@
+{
+  "version": "1.0.0",
+  "timestamp": "2026-04-29T21:04:30.798Z",
+  "target": {
+    "name": "coders-bible",
+    "repo": "/mnt/c/Veritas_Lab/coders-bible",
+    "commitHash": "67bd483ca270132e9a62de3620f1202841daf79d",
+    "branch": "master"
+  },
+  "environment": {
+    "nodeVersion": "v22.14.0",
+    "os": "linux",
+    "arch": "x64",
+    "ci": false
+  },
+  "dependencies": [
+    {
+      "name": "sql.js-httpvfs",
+      "version": "0.8.12",
+      "resolved": "/mnt/c/Veritas_Lab/coders-bible/node_modules/sql.js-httpvfs",
+      "integrity": "f080407359bd60dc",
+      "suspicious": false,
+      "riskScore": 0.1
+    }
+  ],
+  "gates": [
+    {
+      "gate": "GIT_INTEGRITY",
+      "status": "FAIL",
+      "evidence": "Modified files: 22",
+      "durationMs": 96
+    },
+    {
+      "gate": "LOCKFILE",
+      "status": "PASS",
+      "evidence": "package-lock.json present",
+      "durationMs": 2
+    },
+    {
+      "gate": "DETERMINISTIC_BUILD",
+      "status": "INCONCLUSIVE",
+      "evidence": "No build command detected",
+      "durationMs": 0
+    },
+    {
+      "gate": "TEST_PASS",
+      "status": "FAIL",
+      "evidence": "Tests failed: \n> coders-bible@1.0.0 test\n> echo \"Error: no test specified\" && exit 1\n\nError: no test specified\n",
+      "durationMs": 144
+    },
+    {
+      "gate": "LINT",
+      "status": "PASS",
+      "evidence": "npx passed",
+      "durationMs": 2189
+    }
+  ],
+  "adversarial": {
+    "totalPackages": 1,
+    "suspiciousPackages": 0,
+    "probes": [
+      {
+        "package": "sql.js-httpvfs",
+        "probe": "TYPO_SQUATTING",
+        "result": "PASS",
+        "detail": "Name heuristic clean"
+      },
+      {
+        "package": "sql.js-httpvfs",
+        "probe": "VERSION_ANOMALY",
+        "result": "PASS",
+        "detail": "Pinned: 0.8.12"
+      },
+      {
+        "package": "sql.js-httpvfs",
+        "probe": "METADATA_INTEGRITY",
+        "result": "PASS",
+        "detail": "Hash: f080407359bd60dc"
+      },
+      {
+        "package": "system",
+        "probe": "KIMI_REASONING",
+        "result": "INCONCLUSIVE",
+        "detail": "OLLAMA_CLOUD_API_KEY is not set. Skipping Kimi adversarial analysis."
+      }
+    ],
+    "overallRisk": 0
+  },
+  "seal": {
+    "chainHash": "01ceca3f9af588b5b7354784f4ccd3988cfd203861bc04ccdbb1de106de5afca",
+    "sequence": 267
+  },
+  "signature": "fdbcebb32fc457c0d15149dc4f2f8534618b2d1992905f017351a9868b3a6922"
+}
