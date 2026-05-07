@@ -494,10 +494,8 @@ export class WasmBibleEngine {
   async init(onProgress) {
     if (this.ready) return;
 
-    // Load sql.js from CDN
-    const sqlJs = await import(/* @vite-ignore */ SQLJSCDN + 'sql-wasm.js');
-    const initSqlJs = sqlJs.default ?? sqlJs;
-    const SQL = await initSqlJs({ locateFile: () => SQLJSCDN + 'sql-wasm.wasm' });
+    // sql.js loaded as a classic <script> tag — window.initSqlJs is the factory
+    const SQL = await window.initSqlJs({ locateFile: () => SQLJSCDN + 'sql-wasm.wasm' });
 
     // Try IndexedDB cache first
     let buf;
