@@ -1,7 +1,8 @@
-import { createDbWorker } from './sql-httpvfs/index.js';
-
-const workerUrl = new URL('./sql-httpvfs/sqlite.worker.js', import.meta.url);
-const wasmUrl   = new URL('./sql-httpvfs/sql-wasm.wasm',   import.meta.url);
+// sql.js loaded from CDN — no SharedArrayBuffer / COEP required
+const SQLJSCDN = 'https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/';
+const IDB_NAME = 'coders-bible';
+const IDB_STORE = 'db-cache';
+const IDB_KEY   = 'coders_bible.db';
 
 // ─── Language registry ────────────────────────────────────────────────────────
 // Each entry: [name, color, [...[weight, regex]]]
@@ -456,28 +457,100 @@ function synthesizeUnderstanding(snippet, langResult, keywords) {
   return `${lang} snippet — ${desc}${top ? `. Key identifiers: ${top}` : ''}.`;
 }
 
-// ─── WasmBibleEngine ─────────────────────────────────────────────────────────
+// ─── IndexedDB helpers ────────────────────────────────────────────────────────
+function openIDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = e => rej(e.target.error);
+  });
+}
+async function idbGet(db, key) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get(key);
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = e => rej(e.target.error);
+  });
+}
+async function idbPut(db, key, value) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    const req = tx.objectStore(IDB_STORE).put(value, key);
+    req.onsuccess = () => res();
+    req.onerror   = e => rej(e.target.error);
+  });
+}
+
+// ─── BibleEngine ─────────────────────────────────────────────────────────────
 export class WasmBibleEngine {
   constructor(dbUrl = new URL('coders_bible.db', import.meta.url).toString()) {
-    this.dbUrl  = dbUrl;
-    this.worker = null;
-    this.ready  = false;
+    this.dbUrl = dbUrl;
+    this._db   = null;
+    this.ready = false;
   }
 
   async init(onProgress) {
     if (this.ready) return;
-    this.worker = await createDbWorker(
-      [{ from: 'inline', config: { serverMode: 'full', url: this.dbUrl, requestChunkSize: 4096 } }],
-      workerUrl.toString(),
-      wasmUrl.toString()
-    );
+
+    // Load sql.js from CDN
+    const sqlJs = await import(/* @vite-ignore */ SQLJSCDN + 'sql-wasm.js');
+    const initSqlJs = sqlJs.default ?? sqlJs;
+    const SQL = await initSqlJs({ locateFile: () => SQLJSCDN + 'sql-wasm.wasm' });
+
+    // Try IndexedDB cache first
+    let buf;
+    try {
+      const idb = await openIDB();
+      buf = await idbGet(idb, IDB_KEY);
+      if (buf) {
+        if (onProgress) onProgress(100);
+      } else {
+        buf = await this._download(onProgress);
+        await idbPut(idb, IDB_KEY, buf);
+      }
+    } catch {
+      // Cache unavailable — download anyway
+      buf = await this._download(onProgress);
+    }
+
+    this._db  = new SQL.Database(buf);
     this.ready = true;
-    if (onProgress) onProgress(100);
+  }
+
+  async _download(onProgress) {
+    const resp  = await fetch(this.dbUrl);
+    const total = parseInt(resp.headers.get('content-length') || '0', 10);
+    const reader = resp.body.getReader();
+    const chunks = [];
+    let received = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      if (onProgress && total) onProgress(Math.round((received / total) * 95));
+    }
+    if (onProgress) onProgress(99);
+    const merged = new Uint8Array(received);
+    let offset = 0;
+    for (const c of chunks) { merged.set(c, offset); offset += c.length; }
+    return merged;
+  }
+
+  _query(sql, params = []) {
+    const stmt = this._db.prepare(sql);
+    stmt.bind(params);
+    const rows = [];
+    while (stmt.step()) rows.push(stmt.getAsObject());
+    stmt.free();
+    return rows;
   }
 
   async stats() {
     if (!this.ready) throw new Error('DB not initialized');
-    const [{ c: total }] = await this.worker.db.query('SELECT COUNT(*) as c FROM fragments');
+    const [{ c: total }] = this._query('SELECT COUNT(*) as c FROM fragments');
 
     const sql = `
       SELECT
@@ -527,7 +600,7 @@ export class WasmBibleEngine {
       GROUP BY domain
       ORDER BY c DESC
     `;
-    const rows = await this.worker.db.query(sql);
+    const rows = this._query(sql);
     const threshold = Math.max(50, Math.floor(total * 0.003));
     const domains = rows
       .filter(r => r.c >= threshold || r.domain !== 'Other')
@@ -549,7 +622,7 @@ export class WasmBibleEngine {
     const q     = terms.map(t => `"${t}"*`).join(' OR ');
 
     try {
-      const results = await this.worker.db.query(
+      const results = this._query(
         `SELECT f.id, f.content, f.source, f.tier, fts.rank
          FROM bible_fts fts JOIN fragments f ON f.rowid = fts.rowid
          WHERE bible_fts MATCH ? ORDER BY fts.rank LIMIT ?`,

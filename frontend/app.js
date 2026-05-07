@@ -37,14 +37,36 @@ const TIER_COLORS = {
 let statsData = null;
 let searchDebounce = null;
 
+// ─── DB Progress overlay ───
+function showDbProgress(pct) {
+    const overlay = document.getElementById('db-progress-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+    const bar   = overlay.querySelector('.db-progress-bar-fill');
+    const label = overlay.querySelector('.db-progress-label');
+    if (bar)   bar.style.width = `${pct}%`;
+    if (label) {
+        if (pct >= 100) label.textContent = 'Loading database…';
+        else if (pct === 0) label.textContent = 'Preparing knowledge base…';
+        else label.textContent = `Downloading knowledge base… ${pct}%`;
+    }
+}
+
+function hideDbProgress() {
+    const overlay = document.getElementById('db-progress-overlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
 // ─── Init ───
 document.addEventListener('DOMContentLoaded', async () => {
+    showDbProgress(0);
     try {
-        await engine.init();
+        await engine.init(pct => showDbProgress(pct));
         console.log("WasmBibleEngine initialized");
     } catch(e) {
         console.error("Engine init failed:", e);
     }
+    hideDbProgress();
     initParticles();
     initTabs();
     initSearch();
