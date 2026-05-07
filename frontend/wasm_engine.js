@@ -613,17 +613,25 @@ export class WasmBibleEngine {
     if (!clean) return { count: 0, results: [] };
 
     // Multi-term LIKE search. sql.js's stock build doesn't include FTS5,
-    // so we scan the fragments table directly. 67K rows × LIKE is sub-second.
-    const terms = clean.split(/\s+/).filter(t => t.length > 1).slice(0, 5);
+    // so we scan the fragments table directly. ~67K rows × LIKE is sub-second.
+    // OR all terms (any match), rank by how many terms hit, prefer source matches.
+    const terms = clean.split(/\s+/).filter(t => t.length > 1).slice(0, 6);
     if (!terms.length) return { count: 0, results: [] };
 
-    const conditions = terms.map(() => '(content LIKE ? OR source LIKE ?)').join(' AND ');
-    const params = terms.flatMap(t => [`%${t}%`, `%${t}%`]);
+    const rankExpr  = terms.map(() =>
+      '(CASE WHEN content LIKE ? THEN 2 ELSE 0 END) + (CASE WHEN source LIKE ? THEN 3 ELSE 0 END)'
+    ).join(' + ');
+    const whereExpr = terms.map(() => '(content LIKE ? OR source LIKE ?)').join(' OR ');
+    const likes     = terms.flatMap(t => [`%${t}%`, `%${t}%`]);
 
     try {
       const results = this._query(
-        `SELECT id, content, source, tier FROM fragments WHERE ${conditions} LIMIT ?`,
-        [...params, limit]
+        `SELECT id, content, source, tier, (${rankExpr}) AS rank
+         FROM fragments
+         WHERE ${whereExpr}
+         ORDER BY rank DESC, length(content) ASC
+         LIMIT ?`,
+        [...likes, ...likes, limit]
       );
       return { count: results.length, results };
     } catch {
