@@ -1,169 +1,173 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/VrtxOmega/Gravity-Omega/master/omega_icon.png" width="100" alt="CODERS BIBLE" />
+  <img src="https://raw.githubusercontent.com/VrtxOmega/Gravity-Omega/master/omega_icon.png" width="100" alt="CODER'S BIBLE" />
   <h1>CODER'S BIBLE</h1>
-  <p><strong>Sovereign Documentation Harvest & Retrieval Engine — VERITAS & Omega Ecosystem</strong></p>
+  <p><strong>Sovereign documentation knowledge engine — VERITAS & Omega Ecosystem</strong></p>
+  <p>
+    <a href="https://vrtxomega.github.io/the-coders-bible/"><strong>→ Open the live engine ←</strong></a>
+  </p>
 </div>
 
 <div align="center">
 
-![Status](https://img.shields.io/badge/Status-ACTIVE-success?style=for-the-badge&labelColor=000000&color=d4af37)
-![Version](https://img.shields.io/badge/Version-v1.2.0-informational?style=for-the-badge&labelColor=000000&color=d4af37)
-![Stack](https://img.shields.io/badge/Stack-Python%20%2B%20SQLite-informational?style=for-the-badge&labelColor=000000)
+![Status](https://img.shields.io/badge/Status-SHIPPED-success?style=for-the-badge&labelColor=000000&color=d4af37)
+![Version](https://img.shields.io/badge/Version-v2.1.0-informational?style=for-the-badge&labelColor=000000&color=d4af37)
+![Fragments](https://img.shields.io/badge/Fragments-67%2C213-informational?style=for-the-badge&labelColor=000000)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge&labelColor=000000)
 
 </div>
 
 ---
 
-Coder's Bible is the documentation intelligence layer of the Omega Universe — an autonomous harvester that ingests deterministic facts from official sources (man pages, SDK references, CLI docs) and persists them into a local SQLite corpus with 256-dimensional SHA-derived embeddings and FTS5 full-text search. Every assertion is tagged by provenance tier, source, and evidence quality. No cloud relay, no ephemeral cache.
+**67,213 curated code fragments. 25 domains. Zero AI. Zero network. Pure signal.**
+
+Coder's Bible is the developer knowledge engine of the Omega Universe. It harvests deterministic facts from official sources (man pages, SDK references, CLI docs, language references), tags every fragment with its provenance tier, and exposes them through five distinct surfaces — web, PWA, desktop app, VS Code extension, and a single-binary CLI. No cloud relay. No cache. No telemetry. Your queries never leave the machine.
 
 ---
 
-## Ecosystem Canon
+## Surfaces
 
-Within the VERITAS & Sovereign Ecosystem, intelligence without provenance is narrative without evidence. Coder's Bible enforces the opposite: every harvested fragment carries a source identifier, a confidence tier (A-D), and a SHA-256 digest derived embedding. The ingestion pipeline runs on a governed cadence — scraping SDK references, man pages, and language documentation — then depositing the results into the omega-brain RAG store where they feed the vault's retrieval-augmented query engine. Operators do not google for syntax; they query their own provenance-tagged corpus.
+| Surface | What it is | Where to get it |
+|---|---|---|
+| **Web** | Live in any browser at vrtxomega.github.io/the-coders-bible | [Open](https://vrtxomega.github.io/the-coders-bible/) |
+| **PWA** | Same site, installable as a native window via Edge/Chrome | Visit the site, click the install icon in the URL bar |
+| **Desktop** | Tauri app — global Ctrl+Shift+Space hotkey, tray icon, real FTS5 | [Releases](https://github.com/VrtxOmega/coders-bible-desktop/releases) (.msi, .dmg, .deb, .AppImage, .rpm) |
+| **VS Code** | Sidebar search + right-click "Analyze with Coder's Bible" | [coders-bible-2.1.0.vsix](vscode-extension/coders-bible-2.1.0.vsix) |
+| **CLI** | Single ~4 MB Rust binary; `cb "docker compose"`, `cb analyze` | [Releases](https://github.com/VrtxOmega/coders-bible-cli/releases) |
+
+All five surfaces share the same underlying database and analysis logic. Fragments are deterministic — the same query returns the same result on every machine, every day.
 
 ---
 
-## Overview
+## What you can do
 
-Coder's Bible is a deterministic documentation harvesting and retrieval engine written in Python. It connects to official sources (pkg.go.dev, ruby-doc.org, git-scm.com docs, python stdlib, man7.org, and more), extracts deterministic facts — commands, syntax, flags, types — and stores them in a structured SQLite database with 256-dimensional embeddings for semantic retrieval. Every fragment is tagged with its provenance tier, source URL, and confidence level.
+- **Search** 67K fragments instantly. FTS5 in the desktop/CLI/VS Code; ranked LIKE in the browser (sql.js stock build doesn't include FTS5).
+- **Analyze** any pasted snippet. Identifies the language across 25 supported languages with confidence scoring; produces a line-by-line semantic decomposition; flags destructive patterns (rm -rf, DROP TABLE, eval, etc.) and surfaces matching Bible references.
+- **Browse** by domain — Python, JavaScript, TypeScript, Rust, Go, Ruby, PHP, Java, Bash, PowerShell, SQL, Docker, Kubernetes, Nginx, systemd, Git, Ansible, Terraform, Linux, CSS, HTML, YAML, JSON, C/C++, Swift.
 
-The system is designed to run autonomously on a scheduled cadence (cron), harvesting documentation at configurable intervals and maintaining a living, queryable knowledge corpus that powers the Omega intelligence layer.
-
----
-
-## Features
-
-| Capability | Detail |
-|---|---|
-| Multi-Territory Harvest | Scrapes Go, Ruby, Rust, Python, Git, Docker, Kubernetes, PowerShell, TypeScript, and more |
-| SHA-256 Derived Embeddings | 256-dim vectors generated from secure digest repetition for semantic similarity |
-| Provenance Tiering | Every fragment tagged A (verified), B (reliable), C (single source), or D (unverified) |
-| FTS5 Full-Text Search | Fast exact-match queries via SQLite FTS5 virtual tables |
-| RAG Integration | Feeds omega-brain-mcp for contextual retrieval inside agent pipelines |
-| Batch Ingestion | Bulk import from JSON files; 500+ fragments per session |
-| Autonomous Scheduling | Cron-driven nightly harvest runs; self-monitoring and retry logic |
-| Two-Way Vault Bridge | Syncs harvested knowledge items into the Veritas Vault for permanent retention |
+Everything works offline. The desktop ships the database bundled inside the installer; the PWA pulls a 64 MB SQLite file on first visit and caches it in IndexedDB.
 
 ---
 
 ## Architecture
 
 ```
-+---------------------------------------------------------------+
-|                      HARVEST SOURCES                          |
-|  pkg.go.dev  ruby-doc.org  doc.rust-lang.org  git-scm.com    |
-|  docs.docker.com  kubernetes.io  man7.org  python docs       |
-+----------------------+-----------------------+----------------+
-                       |                       |
-                       v                       v
-+---------------------------------------------------------------+
-|                     INGESTION PIPELINE                        |
-|  scraper.py -> parser -> tier_classifier -> embedder           |
-|  (HTML/MD parsing | regex extraction | source attribution)   |
-+----------------------+-----------------------+----------------+
-                       |                       |
-                       v                       v
-+---------------------------------------------------------------+
-|                     STORAGE LAYER                             |
-|  SQLite (better-sqlite3, WAL mode, FTS5)                      |
-|  fragments (text, source, tier, embedding)                     |
-|  ~/.omega-brain/omega_brain.db                                |
-+------------------+---------------------+----------------------+
-                 |                       |
-                 v                       v
-+---------------------------+   +-------------------------------+
-|      RAG ENGINE           |   |       VAULT BRIDGE            |
-|  Semantic similarity      |   |  hermes_vault_bridge.py       |
-|  query via omega_rag_     |   |  Two-way artifact + knowledge |
-|  query (MCP)              |   |  Item sync to Veritas Vault   |
-+---------------------------+   +-------------------------------+
+                      Curated harvest sources
+                  ┌──────────────────────────┐
+                  │  pkg.go.dev   ruby-doc   │
+                  │  doc.rust-lang.org       │
+                  │  docs.docker.com         │
+                  │  kubernetes.io           │
+                  │  man7.org   ss64.com     │
+                  │  python docs   git-scm   │
+                  └────────────┬─────────────┘
+                               │
+                               ▼
+                  ┌──────────────────────────┐
+                  │  Ingestion pipeline      │
+                  │  scrape → parse → tier   │
+                  │  → embed → SQLite + FTS5 │
+                  └────────────┬─────────────┘
+                               │
+                               ▼
+              coders_bible.db  (~64 MB, 67,213 rows, A-B provenance)
+                               │
+            ┌──────────┬──────┴──────┬────────────┬──────────┐
+            ▼          ▼             ▼            ▼          ▼
+          Web        PWA         Desktop      VS Code      CLI
+        (sql.js)  (sql.js +    (Tauri +     (cb.py /     (Rust +
+                  IndexedDB)    rusqlite)    Rust CLI)    rusqlite)
 ```
+
+The harvest pipeline is in this repo (`harvest_*.py`, `cb.py`). The five surface implementations live in their own repos for clean release independence:
+
+| Component | Repo |
+|---|---|
+| Harvest pipeline + cb.py + web frontend | [VrtxOmega/the-coders-bible](https://github.com/VrtxOmega/the-coders-bible) |
+| Tauri desktop + PWA assets | [VrtxOmega/coders-bible-desktop](https://github.com/VrtxOmega/coders-bible-desktop) |
+| Rust CLI binary | [VrtxOmega/coders-bible-cli](https://github.com/VrtxOmega/coders-bible-cli) |
+
+---
+
+## How the data is built
+
+The Python harvest pipeline runs on a governed cadence — typically nightly via cron — and ingests documentation from the source list above. Each scraper extracts deterministic facts (commands, syntax, flags, types, examples), tags them with a provenance tier, and stores them with a SHA-256–derived identifier for deduplication.
+
+```bash
+# Single-territory harvest (Go stdlib)
+python harvest_go.py
+
+# Full ecosystem scan
+python ecosystem_scan.py --all-territories
+
+# Inspect the corpus
+python check_db.py
+# Total fragments: 67,213 | Sources: 25 | Tiers: A=Official, B=Reference
+```
+
+### Provenance Tiers
+
+| Tier | Meaning |
+|---|---|
+| A | Official documentation (e.g. python.org, docs.docker.com) |
+| B | Reference material (man pages, language reference) |
+| C | Single-source community content (currently unused — A/B only) |
+| D | Unverified — not present in the shipped DB |
+
+### Storage Schema
+
+| Table | Description |
+|---|---|
+| `fragments` | id, content, source URL, tier, ingested_at, ftype, lang_version, tags |
+| `bible_fts` | FTS5 virtual table (FTS5 builds: desktop, CLI, VS Code) |
+| `sources` | Source metadata (domain, territory, reliability score) |
+| `harvest_runs` | Audit log of each ingestion session |
 
 ---
 
 ## Quickstart
 
-### Prerequisites
+### Use the engine (no install)
 
-- **Python** 3.10+
-- **SQLite** with FTS5 support
-- **Node.js** 20+ (for vault bridge components)
+Open https://vrtxomega.github.io/the-coders-bible/ — fragment count and search bar load in under a second after the DB caches.
 
-### Install and Run
+### Run the harvester (this repo)
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/VrtxOmega/coders-bible.git
-cd coders-bible
+git clone https://github.com/VrtxOmega/the-coders-bible.git
+cd the-coders-bible
 
-# 2. Install dependencies
 pip install -r requirements.txt
+python harvest_go.py            # one territory
+python ecosystem_scan.py --all  # full sweep
+python check_db.py              # inspect
 
-# 3. Run a single-territory harvest (e.g., Go stdlib)
-python harvest_go.py
-
-# 4. Or run the full ecosystem scan
-python ecosystem_scan.py --all-territories
+# Schedule:
+# 0 3 * * * cd /path/to/repo && python ecosystem_scan.py --all >> harvest.log 2>&1
 ```
 
-### Database Inspection
+### Build the desktop app from source
+
+See [`coders-bible-desktop`](https://github.com/VrtxOmega/coders-bible-desktop) — `cargo tauri build` produces .msi / .dmg / .AppImage / .deb / .rpm. Or just download a pre-built installer from that repo's [releases page](https://github.com/VrtxOmega/coders-bible-desktop/releases).
+
+### Build the CLI
 
 ```bash
-# Check fragment count
-python check_db.py
-# Output: Total fragments: 53,623 | Sources: 12 | Tiers: A=22,041 B=18,902
-```
-
-### Scheduled Harvest
-
-```bash
-# Add to crontab for nightly ecosystem scan
-crontab -e
-# 0 3 * * * cd /path/to/coders-bible && python ecosystem_scan.py --all-territories >> /tmp/harvest.log 2>&1
+git clone https://github.com/VrtxOmega/coders-bible-cli.git
+cd coders-bible-cli
+cargo build --release
+./target/release/coders-bible-cli "docker compose" --limit 5
+./target/release/coders-bible-cli --json analyze "chmod +x deploy.sh"
 ```
 
 ---
 
-## Configuration
+## Privacy & Sovereignty
 
-| Path | Content |
-|---|---|
-| `harvest_config.yaml` | Territory definitions, source URLs, parsing rules |
-| `tiers.json` | Tier assignment logic (A-D) by source domain |
-| `embed_config.yaml` | SHA-256 repetition factor and dimension settings |
-| `~/.omega-brain/omega_brain.db` | Primary SQLite corpus for all harvested fragments |
-
----
-
-## Data Model / Storage
-
-### Primary Tables
-
-| Table | Description |
-|---|---|
-| `fragments` | Harvested text, source URL, tier, timestamp, embedding blob |
-| `fragments_fts` | FTS5 virtual table for full-text search |
-| `sources` | Source metadata (domain, territory, reliability score) |
-| `harvest_runs` | Audit log of each ingestion session |
-
-### Knowledge Item Health States
-
-```
-hot  ->  active  ->  good  ->  stale  ->  dormant
-```
-
-Health computed from last-harvest timestamp and cross-source verification status. Stale fragments are re-harvested on the next sweep.
-
----
-
-## Security & Sovereignty
-
-- **Local-first storage**: All harvested fragments reside in the local SQLite database. No harvested data is transmitted to external services.
-- **Source integrity**: Fragments are validated against checksums and source freshness markers before ingestion.
-- **No credential leakage**: The ingestion pipeline does not require API keys for public documentation sources.
-- **Provenance chain**: Every fragment carries its source URL and ingestion timestamp for deterministic audit.
+- **Local-first**. The database lives on your machine. No fragment ever leaves.
+- **No telemetry**. No analytics, no crash reporters, no phone-home.
+- **No AI in the hot path**. Language detection is deterministic regex scoring across 25 weighted patterns per language — no LLM calls anywhere.
+- **Provenance everywhere**. Every fragment carries its source URL and ingestion timestamp; everything is auditable.
+- **Reproducible builds**. CI publishes SHA-256 checksums for each platform binary.
 
 ---
 
