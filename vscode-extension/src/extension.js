@@ -1,6 +1,6 @@
-// extension.js — The Coder Bible VS Code Extension
-// Sovereign offline developer knowledge base
-// Zero AI. Subprocess bridge to cb.py via python.
+// extension.js — The Coder's Bible VS Code Extension
+// Sovereign offline developer knowledge engine
+// Zero AI. Search/stats via cb.py; analyze via coders-bible-cli (Rust).
 "use strict";
 
 const vscode = require("vscode");
@@ -9,6 +9,7 @@ const path = require("path");
 const fs   = require("fs");
 
 let sidebarProvider;
+let analyzePanel = null;
 
 // ── Locate cb.py ──────────────────────────────────────────────────────────────
 function findCbPy() {
@@ -630,6 +631,143 @@ function getNonce() {
   return text;
 }
 
+// ── Locate coders-bible-cli (Rust binary) ─────────────────────────────────────
+function findBibleBin() {
+  const cfg = vscode.workspace.getConfiguration("codersBible");
+  const explicit = (cfg.get("binPath") || "").trim();
+  if (explicit && fs.existsSync(explicit)) return explicit;
+
+  const exe = process.platform === "win32" ? ".exe" : "";
+  const names = [`coders-bible-cli${exe}`, `cb${exe}`];
+
+  // Workspace-relative builds
+  for (const folder of (vscode.workspace.workspaceFolders || [])) {
+    for (const sub of ["target/release", "target/debug", "bin"]) {
+      for (const n of names) {
+        const c = path.join(folder.uri.fsPath, sub, n);
+        if (fs.existsSync(c)) return c;
+      }
+    }
+  }
+
+  // PATH lookup
+  const dirs = (process.env.PATH || "").split(path.delimiter);
+  for (const d of dirs) {
+    for (const n of names) {
+      const c = path.join(d, n);
+      if (c && fs.existsSync(c)) return c;
+    }
+  }
+  return null;
+}
+
+// ── Run analyze via Rust CLI ──────────────────────────────────────────────────
+// CLI signature: `cb --json analyze <snippet...>` — snippet is positional Vec<String>.
+function runAnalyze(snippet, callback) {
+  const bin = findBibleBin();
+  if (!bin) {
+    callback(new Error("not-found"), null);
+    return;
+  }
+  // Long selections can exceed CMD's 8KB limit on Windows. The web/desktop
+  // engine truncates analyze input the same way; cap to 8000 chars here.
+  const safe = snippet.length > 8000 ? snippet.slice(0, 8000) : snippet;
+  execFile(bin, ["--json", "analyze", safe],
+    { timeout: 15000, maxBuffer: 2 * 1024 * 1024, windowsHide: true },
+    (err, stdout, stderr) => {
+      if (err) { callback(err, stderr || err.message); return; }
+      try { callback(null, JSON.parse(stdout)); }
+      catch (e) { callback(e, stdout); }
+    }
+  );
+}
+
+// ── Render analyze result as a webview ────────────────────────────────────────
+function showAnalyzeResult(snippet, data, context) {
+  const column = vscode.window.activeTextEditor?.viewColumn;
+  if (analyzePanel) {
+    analyzePanel.reveal(column);
+  } else {
+    analyzePanel = vscode.window.createWebviewPanel(
+      "codersBibleAnalyze", "Coder's Bible — Analyze",
+      column ?? vscode.ViewColumn.Beside,
+      { enableScripts: false, retainContextWhenHidden: true }
+    );
+    analyzePanel.onDidDispose(() => { analyzePanel = null; }, null, context.subscriptions);
+  }
+  analyzePanel.webview.html = renderAnalyzeHtml(snippet, data);
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+function renderAnalyzeHtml(snippet, d) {
+  const lang = d.language || {};
+  const safety = d.safety || {};
+  const breakdown = d.breakdown || [];
+  const keywords = d.keywords || [];
+  const results = d.results || [];
+
+  const safetyColor = safety.level === "DESTRUCTIVE" ? "#FF6B6B"
+                    : safety.level === "CAUTION"     ? "#E8C96D"
+                    : "#4ECDC4";
+  const warnings = (safety.warnings || []).map(w =>
+    `<li>${escapeHtml(w.message || w)}</li>`).join("");
+  const notes = (safety.safe_notes || []).map(n =>
+    `<li>${escapeHtml(n)}</li>`).join("");
+  const breakdownRows = breakdown.map(b =>
+    `<tr><td><code>${escapeHtml(b.code)}</code></td><td class="concept">${escapeHtml(b.concept)}</td></tr>`
+  ).join("");
+  const keywordPills = keywords.map(k =>
+    `<span class="pill">${escapeHtml(k)}</span>`).join("");
+  const refList = results.slice(0, 8).map(r => `
+    <div class="ref">
+      <div class="ref-src">${escapeHtml(r.source || "")}</div>
+      <pre class="ref-body">${escapeHtml((r.content || "").slice(0, 400))}</pre>
+    </div>`).join("");
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); padding: 16px; }
+  h2 { color: #C9A84C; border-bottom: 1px solid #2a2a2a; padding-bottom: 6px; margin-top: 22px; }
+  .qu { background: rgba(201,168,76,0.08); border-left: 3px solid #C9A84C; padding: 10px 14px; border-radius: 4px; margin-bottom: 16px; }
+  .lang-badge { display: inline-block; padding: 6px 14px; border-radius: 6px; background: ${escapeHtml(lang.color || "#C9A84C")}; color: #000; font-weight: 700; }
+  .conf { margin-left: 10px; color: var(--vscode-descriptionForeground); }
+  pre { background: var(--vscode-textBlockQuote-background); padding: 8px 10px; border-radius: 4px; white-space: pre-wrap; word-break: break-word; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 4px 8px; vertical-align: top; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  td.concept { color: #C9A84C; font-size: 0.9em; white-space: nowrap; }
+  .pill { display: inline-block; background: rgba(201,168,76,0.12); color: #E8C96D; padding: 2px 8px; border-radius: 99px; margin: 0 4px 4px 0; font-size: 0.85em; }
+  .safety { padding: 10px 14px; border-radius: 4px; border-left: 3px solid ${safetyColor}; background: rgba(255,255,255,0.03); }
+  .ref { background: rgba(255,255,255,0.02); padding: 8px 10px; border-radius: 4px; margin-bottom: 8px; border-left: 2px solid #2a2a2a; }
+  .ref-src { font-size: 0.8em; color: var(--vscode-descriptionForeground); margin-bottom: 4px; }
+  .ref-body { font-size: 0.85em; margin: 0; }
+</style></head><body>
+  ${d.quick_understanding ? `<div class="qu">⚡ ${escapeHtml(d.quick_understanding)}</div>` : ""}
+
+  <h2>Identification</h2>
+  <span class="lang-badge">${escapeHtml(lang.language || "Unknown")}</span>
+  <span class="conf">${Math.round((lang.confidence || 0) * 100)}% — ${escapeHtml(lang.reasoning || "")}</span>
+  <pre style="margin-top:10px">${escapeHtml(snippet)}</pre>
+
+  ${breakdownRows ? `<h2>Semantic Decomposition</h2><table>${breakdownRows}</table>` : ""}
+
+  <h2>Safety Assessment</h2>
+  <div class="safety">
+    <strong style="color:${safetyColor}">${escapeHtml(safety.level || "SAFE")}</strong>
+    ${warnings ? `<ul>${warnings}</ul>` : ""}
+    ${notes && !warnings ? `<ul>${notes}</ul>` : ""}
+  </div>
+
+  ${keywordPills ? `<h2>Keywords</h2><div>${keywordPills}</div>` : ""}
+
+  ${refList ? `<h2>Bible References</h2>${refList}` : ""}
+</body></html>`;
+}
+
 // ── Activate ──────────────────────────────────────────────────────────────────
 function activate(context) {
   sidebarProvider = new CoderBibleSidebarProvider(context);
@@ -650,6 +788,39 @@ function activate(context) {
       setTimeout(() => {
         sidebarProvider.focusAndSearch(selection || "");
       }, 200);
+    })
+  );
+
+  // Analyze command (right-click on selection)
+  context.subscriptions.push(
+    vscode.commands.registerCommand("codersBible.analyze", async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showWarningMessage("Coder's Bible: open a file and select code to analyze.");
+        return;
+      }
+      const snippet = editor.document.getText(editor.selection) || editor.document.getText();
+      if (!snippet.trim()) {
+        vscode.window.showWarningMessage("Coder's Bible: nothing to analyze.");
+        return;
+      }
+      vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: "Coder's Bible: analyzing…" },
+        () => new Promise(resolve => {
+          runAnalyze(snippet, (err, data) => {
+            if (err && err.message === "not-found") {
+              vscode.window.showErrorMessage(
+                "coders-bible-cli not found. Install the Rust CLI from github.com/VrtxOmega/the-coders-bible/releases, or set codersBible.binPath."
+              );
+            } else if (err) {
+              vscode.window.showErrorMessage(`Coder's Bible: analyze failed — ${err.message || err}`);
+            } else {
+              showAnalyzeResult(snippet, data, context);
+            }
+            resolve();
+          });
+        })
+      );
     })
   );
 }

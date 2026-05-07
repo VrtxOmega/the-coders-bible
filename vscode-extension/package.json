@@ -1,12 +1,12 @@
 {
   "name": "coders-bible",
-  "displayName": "The Coder Bible",
-  "description": "Sovereign offline developer knowledge base — search 67K+ gotchas, recipes, and docs without leaving VS Code",
-  "version": "1.1.0",
+  "displayName": "The Coder's Bible",
+  "description": "Sovereign offline developer knowledge engine — search 67K+ fragments, analyze code, all without leaving VS Code. Zero AI. Zero network.",
+  "version": "2.1.0",
   "publisher": "VrtxOmega",
   "repository": {
     "type": "git",
-    "url": "https://github.com/VrtxOmega/coders-bible"
+    "url": "https://github.com/VrtxOmega/the-coders-bible"
   },
   "engines": { "vscode": "^1.80.0" },
   "categories": ["Other"],
@@ -17,7 +17,7 @@
       "activitybar": [
         {
           "id": "codersBible",
-          "title": "The Coder Bible",
+          "title": "The Coder's Bible",
           "icon": "media/omega.svg"
         }
       ]
@@ -27,36 +27,48 @@
         {
           "type": "webview",
           "id": "codersBible.sidebar",
-          "name": "The Coder Bible",
+          "name": "The Coder's Bible",
           "icon": "media/omega.svg",
-          "contextualTitle": "The Coder Bible Search"
+          "contextualTitle": "The Coder's Bible"
         }
       ]
     },
     "commands": [
       {
         "command": "codersBible.search",
-        "title": "The Coder Bible: Search",
+        "title": "Coder's Bible: Search",
         "icon": "$(search)"
       },
       {
-        "command": "codersBible.insertSnippet",
-        "title": "The Coder Bible: Insert at Cursor"
-      },
-      {
-        "command": "codersBible.copyToClipboard",
-        "title": "The Coder Bible: Copy Result"
+        "command": "codersBible.analyze",
+        "title": "Coder's Bible: Analyze Selection",
+        "icon": "$(microscope)"
       }
     ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "codersBible.analyze",
+          "when": "editorHasSelection",
+          "group": "navigation@9"
+        }
+      ]
+    },
     "keybindings": [
       {
         "command": "codersBible.search",
         "key": "ctrl+shift+b",
         "mac": "cmd+shift+b"
+      },
+      {
+        "command": "codersBible.analyze",
+        "key": "ctrl+shift+a",
+        "mac": "cmd+shift+a",
+        "when": "editorHasSelection"
       }
     ],
     "configuration": {
-      "title": "The Coder Bible",
+      "title": "The Coder's Bible",
       "properties": {
         "codersBible.dbPath": {
           "type": "string",
@@ -66,7 +78,12 @@
         "codersBible.pythonPath": {
           "type": "string",
           "default": "python",
-          "description": "Python executable to use for cb.py"
+          "description": "Python executable to use for cb.py (search/stats backend)"
+        },
+        "codersBible.binPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to coders-bible-cli binary (used for Analyze; falls back to PATH if blank)"
         },
         "codersBible.defaultDomain": {
           "type": "string",
