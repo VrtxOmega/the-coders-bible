@@ -8,4 +8,6 @@ venv/
 *.db
 *.db.bak
 *.sqlite3
+# The frontend DB is the deployed knowledge base — keep it tracked
+!frontend/coders_bible.db
 scratch/

@@ -3,8 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="The Coder's Bible — 67,000+ curated code fragments across 28 domains. Search, analyze, and explore the definitive developer knowledge engine.">
+    <meta name="description" content="The Coder's Bible — 67,000+ curated code fragments across 25 domains. Search, analyze, and explore the definitive developer knowledge engine.">
+    <meta name="theme-color" content="#C9A84C">
     <title>The Coder's Bible — Code Knowledge Engine</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -26,8 +30,18 @@
     <header id="app-header">
         <div class="header-left">
             <div class="logo-mark" id="logo-mark">
-                <span class="omega-mark">Ω</span>
-                <div class="logo-ring"></div>
+                <svg class="omega-svg" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="22" cy="22" r="21" stroke="#C9A84C" stroke-width="1.2" opacity="0.55"/>
+                    <circle cx="22" cy="22" r="21" stroke="url(#oglow)" stroke-width="1.2" opacity="0.3"/>
+                    <text x="22" y="29" text-anchor="middle" font-family="Georgia,'Times New Roman',serif"
+                          font-size="19" font-weight="400" fill="#C9A84C" opacity="0.95">Ω</text>
+                    <defs>
+                        <radialGradient id="oglow" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="#D4AF37" stop-opacity="1"/>
+                            <stop offset="100%" stop-color="#C9A84C" stop-opacity="0"/>
+                        </radialGradient>
+                    </defs>
+                </svg>
             </div>
             <div class="header-title">
                 <h1>The Coder's Bible</h1>
@@ -59,7 +73,7 @@
                 <kbd class="cmd-esc">ESC</kbd>
             </div>
             <div id="cmd-results" class="cmd-results">
-                <div class="cmd-empty">Type to search 67,000+ code fragments</div>
+                <div class="cmd-empty" id="cmd-placeholder">Type to search the knowledge base...</div>
             </div>
         </div>
     </div>
@@ -91,12 +105,12 @@
                 </div>
                 <div class="stat-divider"></div>
                 <div class="stat-cell">
-                    <span class="stat-value" id="stat-tiers">4</span>
-                    <span class="stat-label">Tiers</span>
+                    <span class="stat-value" id="stat-tiers">A–B</span>
+                    <span class="stat-label">Provenance</span>
                 </div>
                 <div class="stat-divider"></div>
                 <div class="stat-cell">
-                    <span class="stat-value">FTS5</span>
+                    <span class="stat-value">WASM</span>
                     <span class="stat-label">Engine</span>
                 </div>
             </div>
@@ -131,7 +145,7 @@
                 >
                 <div class="search-meta">
                     <span id="search-result-count" class="search-count"></span>
-                    <span class="search-hint">Press Enter to search</span>
+                    <span class="search-hint">Results appear as you type</span>
                 </div>
             </div>
 
@@ -258,10 +272,33 @@
     <footer id="app-footer">
         <div class="footer-inner">
             <span class="footer-omega">Ω</span>
-            <span>VERITAS Sovereign Engine — The Coder's Bible v2.0</span>
+            <span>VERITAS Sovereign Engine — The Coder's Bible v2.1</span>
         </div>
     </footer>
 
-    <script src="app.js"></script>
+    <!-- ─── DB Download Progress Overlay ─── -->
+    <div id="db-progress-overlay" class="db-progress-overlay" style="display:none;">
+        <div class="db-progress-box">
+            <div class="db-progress-omega">Ω</div>
+            <div class="db-progress-label">Preparing knowledge base…</div>
+            <div class="db-progress-track">
+                <div class="db-progress-bar-fill"></div>
+            </div>
+            <div class="db-progress-sub">First visit — cached for instant access after</div>
+        </div>
+    </div>
+
+    <!-- sql.js vendored locally so window.initSqlJs is available to ES modules without CDN dependency -->
+    <script src="sql-wasm.js"></script>
+    <script type="module" src="app.js"></script>
+
+    <!-- Register the service worker — makes the site PWA-installable -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('service-worker.js').catch(() => {});
+        });
+      }
+    </script>
 </body>
 </html>
