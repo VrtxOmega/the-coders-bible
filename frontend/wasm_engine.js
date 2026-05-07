@@ -1,5 +1,5 @@
-// sql.js loaded from CDN — no SharedArrayBuffer / COEP required
-const SQLJSCDN = 'https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/';
+// sql.js vendored locally — no CDN, no SharedArrayBuffer / COEP required
+const SQL_WASM_URL = new URL('sql-wasm.wasm', import.meta.url).toString();
 const IDB_NAME = 'coders-bible';
 const IDB_STORE = 'db-cache';
 const IDB_KEY   = 'coders_bible.db';
@@ -495,7 +495,7 @@ export class WasmBibleEngine {
     if (this.ready) return;
 
     // sql.js loaded as a classic <script> tag — window.initSqlJs is the factory
-    const SQL = await window.initSqlJs({ locateFile: () => SQLJSCDN + 'sql-wasm.wasm' });
+    const SQL = await window.initSqlJs({ locateFile: () => SQL_WASM_URL });
 
     // Try IndexedDB cache first
     let buf;
@@ -607,24 +607,23 @@ export class WasmBibleEngine {
     return { total_fragments: total, domains };
   }
 
-  _sanitizeFtsQuery(query) {
-    return query.replace(/[^a-zA-Z0-9_\-.\s]/g, ' ').trim();
-  }
-
   async search(query, limit = 20) {
     if (!this.ready) throw new Error('DB not initialized');
-    const clean = this._sanitizeFtsQuery(query);
+    const clean = query.replace(/[^a-zA-Z0-9_\-.\s]/g, ' ').trim();
     if (!clean) return { count: 0, results: [] };
 
-    const terms = clean.split(/\s+/).filter(Boolean);
-    const q     = terms.map(t => `"${t}"*`).join(' OR ');
+    // Multi-term LIKE search. sql.js's stock build doesn't include FTS5,
+    // so we scan the fragments table directly. 67K rows × LIKE is sub-second.
+    const terms = clean.split(/\s+/).filter(t => t.length > 1).slice(0, 5);
+    if (!terms.length) return { count: 0, results: [] };
+
+    const conditions = terms.map(() => '(content LIKE ? OR source LIKE ?)').join(' AND ');
+    const params = terms.flatMap(t => [`%${t}%`, `%${t}%`]);
 
     try {
       const results = this._query(
-        `SELECT f.id, f.content, f.source, f.tier, fts.rank
-         FROM bible_fts fts JOIN fragments f ON f.rowid = fts.rowid
-         WHERE bible_fts MATCH ? ORDER BY fts.rank LIMIT ?`,
-        [q, limit]
+        `SELECT id, content, source, tier FROM fragments WHERE ${conditions} LIMIT ?`,
+        [...params, limit]
       );
       return { count: results.length, results };
     } catch {
