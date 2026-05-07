@@ -334,6 +334,19 @@ function extractKeywords(snippet, lang) {
 
 // ─── Language detection ───────────────────────────────────────────────────────
 function detectLanguage(snippet) {
+  // Bail early for pure URLs / source identifiers — these aren't code, and
+  // their colons confuse loose patterns like Makefile target rules.
+  const trimmed = snippet.trim();
+  if (/^https?:\/\/\S+$/i.test(trimmed) || /^[\w./-]+@[\w.-]+\.?$/.test(trimmed)) {
+    return {
+      language: 'Unknown',
+      color: '#888',
+      confidence: 0,
+      reasoning: 'Input looks like a URL or reference identifier, not source code.',
+      alternatives: [],
+    };
+  }
+
   const lines = snippet.split('\n').filter(l => l.trim());
   const scores = {};
   const hits   = {};
@@ -427,7 +440,6 @@ function scanSafety(snippet) {
 function synthesizeUnderstanding(snippet, langResult, keywords) {
   const lang   = langResult.language;
   const lines  = snippet.split('\n').filter(l => l.trim());
-  const lc     = snippet.toLowerCase();
 
   // Count structural elements
   const fnCount  = (snippet.match(/\bdef\s+\w+|\bfn\s+\w+|\bfunc\s+\w+|\bfunction\s+\w+/g) || []).length;
@@ -448,6 +460,24 @@ function synthesizeUnderstanding(snippet, langResult, keywords) {
   if (/\basync\b|\bawait\b|\bpromise\b/i.test(snippet)) parts.push('uses async/await');
   if (/docker|FROM\s+\w+:\w+/i.test(snippet))   parts.push('builds a container image');
   if (/kubectl|apiVersion:/i.test(snippet))      parts.push('configures Kubernetes resources');
+
+  // Special-case Unknown when no patterns matched: give the user something useful
+  if (lang === 'Unknown' && parts.length === 0) {
+    const trimmed = snippet.trim();
+    if (/^https?:\/\/\S+$/i.test(trimmed)) {
+      return `Looks like a URL — searching the Bible for related fragments by keyword.`;
+    }
+    if (/^[\w./-]+@[\w.-]+\.?$/.test(trimmed)) {
+      return `Looks like a source identifier — searching the Bible for related fragments.`;
+    }
+    if (/^[\w./\\:-]+$/.test(trimmed)) {
+      return `Looks like a path or identifier — searching by keyword.`;
+    }
+    const top = keywords.slice(0, 3).join(', ');
+    return top
+      ? `Couldn't identify a programming language. Searching by keywords: ${top}.`
+      : `Couldn't identify a programming language — try pasting a longer snippet.`;
+  }
 
   const desc = parts.length
     ? parts.join(', ')
