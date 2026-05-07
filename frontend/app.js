@@ -168,7 +168,7 @@ async function doSearch(query) {
         const resultsHtml = data.results.map(r => renderSearchResult(r, q)).join('');
         container.innerHTML = insightHtml + resultsHtml;
     } catch(e) {
-        container.innerHTML = '<div class="search-empty">Search failed — is the backend running on port 5090?</div>';
+        container.innerHTML = '<div class="search-empty">Search engine initializing — try again in a moment.</div>';
     }
 }
 
@@ -302,11 +302,17 @@ function detectContentPatterns(results) {
     return Array.from(hints).slice(0, 3);
 }
 
+let _resultIdCounter = 0;
+
 function renderSearchResult(r, query) {
     const tier = r.tier || 'Derived';
     const bg = TIER_COLORS[tier] || TIER_COLORS.Derived;
-    let content = escapeHtml(r.content || '').substring(0, 300);
+    const raw = r.content || '';
+    let content = escapeHtml(raw).substring(0, 600);
     const source = escapeHtml(r.source || 'unknown');
+    const uid = `sr-${++_resultIdCounter}`;
+    const truncated = raw.length > 600;
+
     // Highlight matching keywords
     if (query) {
         const words = query.split(/\s+/).filter(w => w.length > 1);
@@ -316,14 +322,54 @@ function renderSearchResult(r, query) {
             content = content.replace(re, '<mark>$1</mark>');
         });
     }
-    return `<div class="search-result-card" tabindex="0">
+
+    // data-copy stored on the button; expansion controlled via data-expanded on body
+    const copyAttr = raw.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    return `<div class="search-result-card" tabindex="0" id="${uid}">
         <div class="search-result-header">
             <span class="search-result-source">${source}</span>
-            <span class="search-result-tier" style="background:${bg};color:#fff">${tier}</span>
+            <div class="search-result-actions">
+                <span class="search-result-tier" style="background:${bg};color:#fff">${tier}</span>
+                <button class="copy-btn" title="Copy fragment" data-copy="${copyAttr}">Copy</button>
+            </div>
         </div>
         <div class="search-result-body">${content}</div>
+        ${truncated ? `<button class="expand-btn">Show more</button>` : ''}
     </div>`;
 }
+
+// Event delegation for dynamically-rendered result cards
+document.addEventListener('click', e => {
+    const copyBtn = e.target.closest('.copy-btn');
+    if (copyBtn) {
+        const text = copyBtn.dataset.copy;
+        navigator.clipboard.writeText(text).then(() => {
+            const orig = copyBtn.textContent;
+            copyBtn.textContent = 'Copied!';
+            copyBtn.classList.add('copy-btn-success');
+            setTimeout(() => { copyBtn.textContent = orig; copyBtn.classList.remove('copy-btn-success'); }, 1500);
+        }).catch(() => {});
+        return;
+    }
+
+    const expandBtn = e.target.closest('.expand-btn');
+    if (expandBtn) {
+        const card = expandBtn.closest('.search-result-card');
+        const body = card?.querySelector('.search-result-body');
+        const copyBtn = card?.querySelector('.copy-btn');
+        if (!body || !copyBtn) return;
+        const expanded = body.dataset.expanded === 'true';
+        if (!expanded) {
+            body.textContent = copyBtn.dataset.copy;
+            body.dataset.expanded = 'true';
+            expandBtn.textContent = 'Show less';
+        } else {
+            body.textContent = copyBtn.dataset.copy.substring(0, 600);
+            body.dataset.expanded = '';
+            expandBtn.textContent = 'Show more';
+        }
+    }
+});
 
 // ─── Analyze Tab ───
 function initAnalyze() {
@@ -371,15 +417,15 @@ async function analyzeSnippet(snippet) {
         const data = await engine.analyze(snippet);
         loading.style.display = 'none';
         results.style.display = 'block';
-        renderAnalysis(data);
+        renderAnalysis(data, snippet);
     } catch(e) {
         loading.style.display = 'none';
         results.style.display = 'block';
-        document.getElementById('bible-results').innerHTML = '<div class="search-empty">Analysis failed — is the backend running?</div>';
+        document.getElementById('bible-results').innerHTML = '<div class="search-empty">Analysis engine initializing — try again in a moment.</div>';
     }
 }
 
-function renderAnalysis(data) {
+function renderAnalysis(data, snippet) {
     // Quick Understanding — one-line plain-English summary
     const quContainer = document.getElementById('quick-understanding');
     if (quContainer && data.quick_understanding) {
@@ -400,7 +446,7 @@ function renderAnalysis(data) {
     document.getElementById('lang-name').textContent = lang.language || 'Unknown';
     document.getElementById('lang-confidence').textContent = `${Math.round((lang.confidence||0)*100)}%`;
     document.getElementById('lang-reasoning').textContent = lang.reasoning || '';
-    document.getElementById('input-preview').innerHTML = `<code>${escapeHtml(data.input||'')}</code>`;
+    document.getElementById('input-preview').innerHTML = `<code>${escapeHtml(snippet||data.input||'')}</code>`;
 
     const alts = (lang.alternatives||[]).map(a =>
         `<span class="alt-badge">${a.language} ${Math.round(a.confidence*100)}%</span>`
@@ -424,14 +470,16 @@ function renderAnalysis(data) {
     if (safety.level === 'DESTRUCTIVE') {
         safetyIcon.textContent = '🔴';
         safetyBody.innerHTML = safety.warnings.map(w =>
-            `<div class="safety-warning danger">${w.message}</div>`
+            `<div class="safety-warning danger">${escapeHtml(w.message)}</div>`
         ).join('');
-    } else if (safety.level === 'SAFE') {
-        safetyIcon.textContent = '🟢';
-        safetyBody.innerHTML = `<div class="safety-ok">✅ ${(safety.safe_notes||[]).join(', ')}</div>`;
-    } else {
+    } else if (safety.level === 'CAUTION') {
         safetyIcon.textContent = '🟡';
-        safetyBody.innerHTML = `<div class="safety-caution">⚠️ ${(safety.safe_notes||[]).join(', ')}</div>`;
+        safetyBody.innerHTML = safety.warnings.map(w =>
+            `<div class="safety-caution">⚠️ ${escapeHtml(w.message)}</div>`
+        ).join('');
+    } else {
+        safetyIcon.textContent = '🟢';
+        safetyBody.innerHTML = `<div class="safety-ok">✅ ${escapeHtml((safety.safe_notes||[]).join(' · ') || 'No dangerous patterns detected')}</div>`;
     }
 
     // Keywords
@@ -474,7 +522,9 @@ function openPalette() {
     p.style.display = 'flex';
     document.getElementById('cmd-input').value = '';
     document.getElementById('cmd-input').focus();
-    document.getElementById('cmd-results').innerHTML = '<div class="cmd-empty">Type to search 67,000+ code fragments</div>';
+    const total = statsData?.total_fragments;
+    const label = total ? `Type to search ${total.toLocaleString()} code fragments` : 'Type to search the knowledge base...';
+    document.getElementById('cmd-results').innerHTML = `<div class="cmd-empty">${label}</div>`;
 }
 
 function closePalette() {
@@ -484,7 +534,12 @@ function closePalette() {
 async function doCmdSearch(query) {
     const q = query.trim();
     const container = document.getElementById('cmd-results');
-    if (!q) { container.innerHTML = '<div class="cmd-empty">Type to search 67,000+ code fragments</div>'; return; }
+    if (!q) {
+        const total = statsData?.total_fragments;
+        const label = total ? `Type to search ${total.toLocaleString()} code fragments` : 'Type to search the knowledge base...';
+        container.innerHTML = `<div class="cmd-empty">${label}</div>`;
+        return;
+    }
     try {
         const data = await engine.search(q, 8);
         if (!data.results || data.results.length === 0) {
@@ -518,6 +573,14 @@ async function loadStats() {
 
         document.getElementById('stats-count').textContent = total.toLocaleString();
         document.getElementById('browse-count').textContent = domainCount;
+
+        // Update command trigger label, palette placeholder, and analyze loading text with live count
+        const cmdText = document.querySelector('.cmd-text');
+        if (cmdText) cmdText.textContent = `Search ${total.toLocaleString()} fragments...`;
+        const cmdPlaceholder = document.getElementById('cmd-placeholder');
+        if (cmdPlaceholder) cmdPlaceholder.textContent = `Type to search ${total.toLocaleString()} code fragments`;
+        const loadingCount = document.getElementById('loading-frag-count');
+        if (loadingCount) loadingCount.textContent = total.toLocaleString();
 
         renderDomains(domains);
     } catch(e) {
